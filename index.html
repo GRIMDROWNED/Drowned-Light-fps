@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05090c">
+<meta name="description" content="Drowned Light FPS — the lantern knight's marsh, seen through the visor. Will you thrive in the light or drown in the darkness?">
+<title>Drowned Light FPS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=0.1.0">
+</head>
+<body>
+<div id="stage">
+<canvas id="game" aria-label="Drowned Light game view"></canvas>
+<canvas id="vm" aria-hidden="true"></canvas>
+<div id="fxHurt" class="fx"></div>
+<div id="fxCorrupt" class="fx"></div>
+
+<div id="hud" class="hidden">
+  <div id="compass"><div id="compassStrip"></div><div id="compassMid"></div></div>
+  <div id="target" class="hidden"><div id="targetName"></div><div class="bar tgt"><i id="targetFill"></i></div></div>
+
+  <section id="vitals" class="panel">
+    <div class="row"><span class="lbl">Health</span><span id="hpText" class="val"></span></div>
+    <div class="bar hp"><i id="hpFill"></i></div>
+    <div class="row"><span class="lbl">Corruption</span><span id="corText" class="val"></span></div>
+    <div class="bar cor"><i id="corFill"></i><b style="left:25%"></b><b style="left:50%"></b><b style="left:75%"></b></div>
+    <div class="row"><span class="lbl">Lantern oil</span><span id="oilText" class="val"></span></div>
+    <div class="bar oil"><i id="oilFill"></i></div>
+    <div id="lightState"></div>
+  </section>
+  <div id="carried"></div>
+
+  <section id="nav" class="panel">
+    <div id="clock"><span id="phaseIcon" class="sun"></span><div><div id="dayText"></div><div id="phaseText"></div></div></div>
+    <div id="zoneText"></div>
+    <div class="compass"><span id="homeDist"></span></div>
+  </section>
+
+  <div id="xhair"></div>
+  <div id="prompt"></div>
+
+  <div id="actions">
+    <div class="act" id="actDash"><span class="cd"></span><b>Dash</b><kbd>Space</kbd></div>
+    <div class="act" id="actAbility"><span class="cd"></span><b id="abilityName">Ability</b><kbd>E</kbd></div>
+    <div class="act" id="actTorch"><span class="cd"></span><b>Torch <span id="torchCount"></span></b><kbd>F</kbd></div>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+</div>
+
+<div id="loading" class="screen"><div class="box"><img class="studio" src="assets/drowned-games.jpg" alt="Drowned Games"><h1>Drowned Light</h1><p class="muted">Lighting the lantern…</p><div class="bar oil"><i id="loadFill"></i></div></div></div>
+
+<div id="title" class="screen hidden">
+  <div class="box">
+    <h1>Drowned Light</h1>
+    <h2>Through the Visor</h2>
+    <p class="tag">Will you thrive in the light or drown in the darkness?</p>
+    <div class="menu">
+      <button id="btnContinue" class="primary hidden">Continue</button>
+      <button id="btnNew">New game</button>
+      <button id="btnControls">Controls</button>
+      <button id="btnMute">Sound: on</button>
+    </div>
+    <p id="continueInfo" class="muted small"></p>
+  </div>
+</div>
+
+<div id="newgame" class="screen hidden">
+  <div class="box wide">
+    <h2>Choose your kit</h2>
+    <div id="kitList" class="cards"></div>
+    <h2>Choose the darkness</h2>
+    <div id="diffList" class="cards"></div>
+    <div class="menu row">
+      <button id="btnBack">Back</button>
+      <button id="btnBegin" class="primary">Begin</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="box">
+    <h2>Paused</h2>
+    <div class="menu">
+      <button id="btnResume" class="primary">Resume</button>
+      <label class="slider">Look sensitivity <input id="sens" type="range" min="0.3" max="2.5" step="0.05"></label>
+      <button id="btnInvert">Invert look: off</button>
+      <button id="btnControls2">Controls</button>
+      <button id="btnMute2">Sound: on</button>
+      <button id="btnQuit">Save and quit to title</button>
+    </div>
+  </div>
+</div>
+
+<div id="controls" class="screen hidden">
+  <div class="box wide">
+    <h2>Controls</h2>
+    <table class="keys">
+      <tr><th></th><th>Keyboard and mouse</th><th>Controller</th></tr>
+      <tr><td>Move</td><td>WASD / arrows</td><td>Left stick</td></tr>
+      <tr><td>Look</td><td>Mouse</td><td>Right stick</td></tr>
+      <tr><td>Attack</td><td>Left mouse (hold to keep striking) · J / K</td><td>RT</td></tr>
+      <tr><td>Mine</td><td>Right mouse · G (look at a tree, rock, ore or sprout)</td><td>LT</td></tr>
+      <tr><td>Dash</td><td>Space / Shift</td><td>A</td></tr>
+      <tr><td>Kit ability</td><td>E / Q</td><td>B / X / RB</td></tr>
+      <tr><td>Plant a torch</td><td>F / T</td><td>LB</td></tr>
+      <tr><td>Camp menu</td><td>C (at camp)</td><td>Y</td></tr>
+      <tr><td>Pause</td><td>Esc / P</td><td>Menu / View</td></tr>
+      <tr><td>Sound</td><td>M</td><td></td></tr>
+    </table>
+    <p class="muted small">Melee kits also chop or mine whatever the crosshair rests on when no Drowned is in reach.</p>
+    <div class="menu"><button id="btnControlsBack" class="primary">Back</button></div>
+  </div>
+</div>
+
+<div id="camp" class="screen hidden">
+  <div class="box wide">
+    <h2 id="campTitle">The Camp</h2>
+    <p id="campTier" class="muted"></p>
+    <div id="stash"></div>
+    <div id="upgrades"></div>
+    <div class="menu row">
+      <button id="btnTorch"></button>
+      <button id="btnCampClose" class="primary">Back to the marsh <kbd>C</kbd></button>
+    </div>
+  </div>
+</div>
+
+<div id="death" class="screen hidden">
+  <div class="box">
+    <h1 id="deathTitle">You have drowned</h1>
+    <p id="deathText" class="muted"></p>
+    <div class="menu"><button id="btnRise" class="primary">Rise at the fire</button></div>
+  </div>
+</div>
+
+<div id="clickToPlay" class="hidden">Click to take up the lantern</div>
+</div>
+<script type="module" src="src/main.js?v=0.1.0"></script>
+</body>
+</html>
