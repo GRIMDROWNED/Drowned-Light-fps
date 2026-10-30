@@ -30,7 +30,7 @@ G.defaultSave = () => ({
   stash: Object.fromEntries(RES_KEYS.map((k) => [k, 0])),
   carried: Object.fromEntries(RES_KEYS.map((k) => [k, 0])),
   up: { flame: 1, forge: 0, armory: 0, workbench: 0, garden: 0 },
-  torches: 2, self: null, deepest: 1, sens: 1, invertY: false, muted: false,
+  torches: 2, self: null, deepest: 1, sens: 1, invertY: false, muted: false, view: "third",
 });
 G.load = function () {
   try {
@@ -118,7 +118,7 @@ G.setup = function (renderer, scene, camera) {
 };
 
 G.newGame = function (kit, difficulty) {
-  const keep = { sens: G.save.sens, invertY: G.save.invertY, muted: G.save.muted };
+  const keep = { sens: G.save.sens, invertY: G.save.invertY, muted: G.save.muted, view: G.save.view };
   G.save = Object.assign(G.defaultSave(), keep);
   G.save.kit = kit;
   G.save.difficulty = difficulty;
@@ -141,12 +141,13 @@ G.startLife = function (fresh) {
   const st = G.stats();
   const prevYaw = G.player ? G.player.yaw : 0;
   G.player = {
-    x: 0, y: 90, yaw: fresh ? 0 : prevYaw, pitch: 0, vx: 0, vy: 0, kx: 0, ky: 0,
+    x: 0, y: 170, yaw: fresh ? 0 : prevYaw, pitch: 0, vx: 0, vy: 0, kx: 0, ky: 0,
     hp: st.maxHp, corrupt: 0, oil: st.maxOil, stage: 1, protect: null, exposed: false,
     carried: Object.fromEntries(RES_KEYS.map((k) => [k, 0])),
     atkCd: 0, dashCd: 0, dashT: 0, dashDir: [0, 0], dashHit: new Set(), abiCd: 0, inv: 1.5, still: 0,
-    bob: 0, stepT: 0, zi: 0, dead: false,
+    bob: 0, stepT: 0, zi: 0, dead: false, face: fresh ? -Math.PI / 2 : prevYaw, animT: 0, swingT: 0, hurtT: 0,
   };
+  if (!G.knight) { G.knight = billboard("lantern-knight/back", 1); G.scene.add(G.knight); }
   if (fresh) {
     for (const e of G.enemies) removeEnemy(e);
     G.enemies = [];
@@ -244,6 +245,10 @@ function updatePlayer(dt) {
   p.dashCd = Math.max(0, p.dashCd - dt);
   p.abiCd = Math.max(0, p.abiCd - dt);
   p.inv = Math.max(0, p.inv - dt);
+  p.swingT = Math.max(0, p.swingT - dt);
+  p.hurtT = Math.max(0, p.hurtT - dt);
+  p.animT += dt;
+  if (Input.take("view")) G.toggleView();
 
   const zi = World.zoneIndex(p.x, p.y);
   p.zi = zi;
@@ -281,6 +286,9 @@ function updatePlayer(dt) {
   }
   p.kx *= Math.pow(0.002, dt); p.ky *= Math.pow(0.002, dt);
   moveBody(p, (vx + p.kx) * dt, (vy + p.ky) * dt, PLAYER_R);
+  // the knight turns to where he walks, and to where you aim when he strikes
+  const want = p.swingT > 0 || Input.attackHeld() ? Math.atan2(fy, fx) : p.dashT > 0 ? Math.atan2(p.dashDir[1], p.dashDir[0]) : p.moving ? Math.atan2(my, mx) : null;
+  if (want !== null) p.face += angleDiff(p.face, want) * Math.min(1, dt * 14);
 
   // footsteps and head bob
   if (p.moving) {
@@ -366,6 +374,7 @@ function updateAim() {
 function attack() {
   const p = G.player, kit = G.kit(), A = kit.attack, st = G.stats();
   p.atkCd = A.cd;
+  p.swingT = 0.3;
   const [fx, fy] = forward(p.yaw);
   const fa = Math.atan2(fy, fx);
   let mult = st.dmgMult;
@@ -401,6 +410,7 @@ function mineNode(o, fromSwing) {
   const p = G.player, def = o.def;
   if (!fromSwing) {
     p.atkCd = 0.38;
+    p.swingT = 0.3;
     ViewModel.attack(G.kit().attack.type === "bolt" ? "bolt" : G.kit().attack.type, 0.28);
   }
   o.hits += 1;
@@ -812,6 +822,7 @@ function hurtPlayer(dmg, ang) {
   if (kit.passive && kit.passive.stance && p.still >= kit.passive.stance.after) dmg *= 1 - kit.passive.stance.guard;
   p.hp -= dmg;
   p.inv = 0.35;
+  p.hurtT = 0.25;
   p.kx += Math.cos(ang) * 160; p.ky += Math.sin(ang) * 160;
   G.hurtFlash = 0.5;
   G.shake = Math.max(G.shake, 0.25);
@@ -977,6 +988,14 @@ G.rise = function () {
   if (G.save.self) setTimeout(() => say("Your drowned self keeps what you carried. Slay it to take it back.", "warn"), 800);
 };
 
+/* ---------------- view ---------------- */
+G.thirdPerson = () => G.save.view !== "first";
+G.toggleView = function () {
+  G.save.view = G.thirdPerson() ? "first" : "third";
+  say(G.thirdPerson() ? "Third-person view" : "First-person view");
+  G.persist();
+};
+
 /* ---------------- camp ---------------- */
 G.openCamp = function () { G.state = "camp"; Input.unlock(); if (G.onCamp) G.onCamp(); };
 G.canAfford = (cost) => Object.keys(cost).every((k) => G.save.stash[k] >= cost[k]);
@@ -1034,7 +1053,9 @@ function updateLights(dt) {
     L.intensity = l.i * fl * dayK;
   }
   const st = G.stats();
-  G.lantern.position.set(p.x + forward(p.yaw)[0] * 10, ph - 14, p.y + forward(p.yaw)[1] * 10);
+  // first person: the lantern hangs just ahead of you; third person: at the knight's side, toward the camera, so he is lit
+  const lk = G.thirdPerson() ? -22 : 10;
+  G.lantern.position.set(p.x + forward(p.yaw)[0] * lk, ph - 14, p.y + forward(p.yaw)[1] * lk);
   G.lantern.distance = st.lanternR * (p.oil > 0 ? 4 : 2.2);
   G.lantern.intensity = (p.oil > 0 ? 1.15 : 0.45) * lerp(0.3, 1, G.nightAmt) * (1 + Math.sin(G.t * 15) * 0.04);
 }
@@ -1067,20 +1088,63 @@ function render(dt) {
   const gh = World.height(p.x, p.y);
   const bob = G.state === "play" && p.moving ? Math.sin(p.bob * 2) * 2.2 : 0;
   const deadDrop = G.state === "dead" ? Math.min(1, (p.deadT || 0) * 0.8) * (EYE - 14) : 0;
-  cam.position.set(p.x + (Math.random() - 0.5) * G.shake * 8, gh + EYE + bob - deadDrop + (Math.random() - 0.5) * G.shake * 8, p.y);
+  const shx = (Math.random() - 0.5) * G.shake * 8, shy = (Math.random() - 0.5) * G.shake * 8;
+  const third = G.thirdPerson() && G.state !== "title";
   cam.rotation.order = "YXZ";
-  cam.rotation.y = p.yaw;
-  cam.rotation.x = p.pitch;
-  cam.rotation.z = G.state === "dead" ? Math.min(0.5, (p.deadT || 0) * 0.4) : p.dashT > 0 ? 0.02 : 0;
+  if (third) {
+    // 2.5D: the camera rides behind and above the knight, looking down past his shoulder;
+    // looking up and down tilts it between a low chase view and a high, almost top-down one
+    const [fx, fy] = forward(p.yaw);
+    const elev = clamp(0.42 - p.pitch * 0.8, 0.12, 1.15);
+    const D = 185;
+    const tx = p.x + fx * 50, ty = p.y + fy * 50, th = gh + 50;
+    let cx = tx - fx * D * Math.cos(elev), cy = ty - fy * D * Math.cos(elev), ch = th + D * Math.sin(elev);
+    ch = Math.max(ch, World.height(cx, cy) + 24, WATER_LEVEL + 20);
+    cam.position.set(cx + shx, ch + shy - deadDrop * 0.3, cy);
+    cam.rotation.y = p.yaw;
+    cam.rotation.x = -Math.atan2(ch - th, Math.hypot(cx - tx, cy - ty)) + 0.05;
+    cam.rotation.z = 0;
+  } else {
+    cam.position.set(p.x + shx, gh + EYE + bob - deadDrop + shy, p.y);
+    cam.rotation.y = p.yaw;
+    cam.rotation.x = p.pitch;
+    cam.rotation.z = G.state === "dead" ? Math.min(0.5, (p.deadT || 0) * 0.4) : p.dashT > 0 ? 0.02 : 0;
+  }
+  G.camX = cam.position.x; G.camY = cam.position.z;
+  renderKnight(third);
 
-  World.faceCamera(p.yaw, dt, G.t, p.x, p.y);
+  World.faceCamera(p.yaw, dt, G.t, G.camX, G.camY);
   Camp.update(G.t, p.yaw, G.flame.lit, G.save.up.flame / 5);
   renderEnemies();
 
   // the hands (none on the title screen)
-  ViewModel.cv.style.display = G.state === "title" ? "none" : "";
+  ViewModel.cv.style.display = G.state === "title" || third ? "none" : "";
   const lightHere = G.protectionAt(p.x, p.y) === "human" ? 1 : lerp(1, 0.55, dark);
   ViewModel.update(dt, G.state === "play" ? (p.turn || 0) * 0.02 : 0, G.state === "play" && p.moving, G.kit().attack.type, lightHere, p.oil > 0 ? 1 : 0, G.t, p.dashT > 0);
+}
+
+// The knight himself, in the third-person view: his own drawn frames, seen from wherever the camera is.
+function renderKnight(show) {
+  const p = G.player, k = G.knight, art = G.kit().art;
+  k.visible = show;
+  if (!show) return;
+  const yaw = p.yaw, rx = Math.cos(yaw), ry = -Math.sin(yaw);
+  const toCam = Math.atan2(G.camY - p.y, G.camX - p.x);
+  const rel = Math.abs(angleDiff(p.face, toCam));
+  const facesRight = Math.cos(p.face) * rx + Math.sin(p.face) * ry > 0;
+  const f = 1 + (Math.floor(p.animT * 8) % 4);
+  const moving = G.state === "play" && p.moving;
+  let name, flip = false;
+  if (G.state === "dead") { name = `${art}/side/death`; flip = !facesRight; }
+  else if (p.hurtT > 0) { name = `${art}/side/hurt`; flip = !facesRight; }
+  else if (p.dashT > 0 && art !== "pike-warden") { name = `${art}/side/dash`; flip = !facesRight; }
+  else if (p.swingT > 0) { name = `${art}/${p.swingT > 0.2 ? "attackA" : p.swingT > 0.1 ? "attackB" : "attackC"}`; flip = !facesRight; }
+  else if (rel < 0.8) name = moving ? `${art}/walkF${f}` : `${art}/front`;
+  else if (rel > 2.35) name = moving ? `${art}/walkB${f}` : `${art}/back`;
+  else { name = moving ? `${art}/side/walk${f}` : `${art}/right`; flip = !facesRight; }
+  setSprite(k, name, 1, flip, p.hurtT > 0 ? "flash" : "");
+  k.position.set(p.x, World.height(p.x, p.y) - 3, p.y);
+  k.rotation.y = yaw;
 }
 
 function renderEnemies() {
@@ -1090,7 +1154,7 @@ function renderEnemies() {
     const m = e.mesh, d = e.def;
     const gh = World.height(e.x, e.y);
     // which way it faces, seen from the camera: front, back or side
-    const toCam = Math.atan2(p.y - e.y, p.x - e.x);
+    const toCam = Math.atan2(G.camY - e.y, G.camX - e.x);
     const rel = Math.abs(angleDiff(e.angle, toCam));
     const facesRight = Math.cos(e.angle) * rx + Math.sin(e.angle) * ry > 0;
     const walkF = 1 + (Math.floor(e.animT * 7) % 4);
