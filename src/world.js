@@ -4,6 +4,7 @@ import * as THREE from "../vendor/three.module.min.js";
 import { hash, fbm, weighted, smooth, lerp } from "./core.js";
 import { ZONES, SPAWN_TABLE, GROVE, OBJ } from "./data.js";
 import { Assets, billboard, setSprite } from "./assets.js";
+import { Style, objectModel, setNightGlow } from "./models.js";
 
 const CH = 256;          // chunk size in world px
 const GS = 128;          // ground texture resolution per chunk (1 texel = 2 world px)
@@ -14,6 +15,10 @@ const CAMP_DRY = 380;    // and no water
 const WATER = 0.31, SHORE = 0.345;
 export const WATER_LEVEL = -6;
 
+const groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+const GRASS = [0x4a5a2c, 0x45542a, 0x50602f, 0x4d5a30];
+
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export const sq = (x, y) => Math.max(Math.abs(x), Math.abs(y)); // the camp is square
 
 export const World = {
@@ -27,9 +32,17 @@ export const World = {
 
   init(scene) {
     this.scene = scene;
-    const wg = new THREE.PlaneGeometry(CH * (VIEW * 2 + 3), CH * (VIEW * 2 + 3));
+    const n = Style.models ? (VIEW * 2 + 3) * 4 : 1;
+    const wg = new THREE.PlaneGeometry(CH * (VIEW * 2 + 3), CH * (VIEW * 2 + 3), n, n);
     wg.rotateX(-Math.PI / 2);
-    this.waterMat = new THREE.MeshLambertMaterial({ color: 0x0d2a2c, transparent: true, opacity: 0.72, emissive: 0x020809 });
+    this.waterMat = Style.models
+      ? new THREE.MeshPhongMaterial({ color: 0x123a3e, transparent: true, opacity: 0.8, emissive: 0x03100f, specular: 0x4a7a78, shininess: 40, flatShading: true })
+      : new THREE.MeshLambertMaterial({ color: 0x0d2a2c, transparent: true, opacity: 0.72, emissive: 0x020809 });
+    if (Style.models) { // a gentle faceted swell on the water
+      const p = wg.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, (hash(Math.round(p.getX(i)), Math.round(p.getZ(i)), 77) - 0.5) * 3);
+      wg.computeVertexNormals();
+    }
     this.water = new THREE.Mesh(wg, this.waterMat);
     this.water.position.y = WATER_LEVEL;
     this.water.renderOrder = 1;
@@ -93,14 +106,22 @@ export const World = {
 
   build(cx, cy) {
     const key = cx + "," + cy;
-    const tex = this.groundTexture(cx, cy);
-    const geo = new THREE.PlaneGeometry(CH, CH, SEG, SEG);
+    let geo = new THREE.PlaneGeometry(CH, CH, SEG, SEG);
     geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position;
     const ox = (cx + 0.5) * CH, oy = (cy + 0.5) * CH;
+    let pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setY(i, this.height(ox + pos.getX(i), oy + pos.getZ(i)));
-    geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex }));
+    let mesh;
+    if (Style.models) {
+      geo = geo.toNonIndexed();
+      geo.deleteAttribute("uv");
+      geo.setAttribute("color", new THREE.BufferAttribute(this.groundColours(geo.attributes.position, ox, oy), 3));
+      geo.computeVertexNormals();
+      mesh = new THREE.Mesh(geo, groundMat);
+    } else {
+      geo.computeVertexNormals();
+      mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: this.groundTexture(cx, cy) }));
+    }
     mesh.position.set(ox, 0, oy);
     this.scene.add(mesh);
     const objects = this.gen(cx, cy);
@@ -110,8 +131,7 @@ export const World = {
   unload(c) {
     this.scene.remove(c.mesh);
     c.mesh.geometry.dispose();
-    c.mesh.material.map.dispose();
-    c.mesh.material.dispose();
+    if (c.mesh.material !== groundMat) { c.mesh.material.map.dispose(); c.mesh.material.dispose(); }
     for (const o of c.objects) if (o.mesh) this.scene.remove(o.mesh);
     this.chunks.delete(c.key);
   },
@@ -120,6 +140,25 @@ export const World = {
     if (tier === this.campTier) return;
     this.campTier = tier;
     for (const c of [...this.chunks.values()]) if (Math.abs(c.cx + 0.5) < 2 && Math.abs(c.cy + 0.5) < 2) this.unload(c);
+  },
+
+  // The low-poly ground: one flat colour per triangle, from the same water, shore, dirt and camp rules as the tiles.
+  groundColours(pos, ox, oy) {
+    const n = pos.count, col = new Float32Array(n * 3), c = new THREE.Color();
+    const pave = this.campTier >= 2 ? 92 : 0;
+    for (let i = 0; i < n; i += 3) {
+      const x = ox + (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3, y = oy + (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3;
+      const h = (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3;
+      const s = sq(x, y), r = hash(Math.round(x), Math.round(y), 91);
+      if (s < 245) c.set(Math.hypot(x, y) < pave ? (r < 0.5 ? 0x6e6458 : 0x625a50) : 0x5a4630);
+      else if (h < WATER_LEVEL - 2) c.set(0x24302a);
+      else if (h < WATER_LEVEL + 3 || this.isShore(x, y)) c.set(0x5e5a3a);
+      else if (fbm(x / 340, y / 340, 41) > 0.62) c.set(0x5a4a32);
+      else c.set(GRASS[(r * GRASS.length) | 0]);
+      const dim = this.zone(x, y).dim, k = (0.92 + r * 0.16) * (1 - dim * 0.6);
+      for (let j = 0; j < 3; j++) { col[(i + j) * 3] = c.r * k * (1 - dim * 0.25); col[(i + j) * 3 + 1] = c.g * k; col[(i + j) * 3 + 2] = c.b * k * (1 + dim * 0.2); }
+    }
+    return col;
   },
 
   groundTexture(cx, cy) {
@@ -259,10 +298,16 @@ export const World = {
   spawnMesh(o) {
     const gone = o.dead && o.type !== "tree" && o.type !== "sprout";
     if (gone) { o.mesh = null; return; }
-    const name = this.spriteFor(o, this.night);
-    o.mesh = billboard(name, o.def.scale);
-    o.mesh.position.set(o.x, o.h - 3, o.y);
-    o.sprite = name;
+    if (Style.models) {
+      o.mesh = objectModel(o.type, o.v, o.stage, this.night);
+      o.sprite = o.mesh.userData.key;
+      o.mesh.position.set(o.x, o.h - 1, o.y);
+    } else {
+      const name = this.spriteFor(o, this.night);
+      o.mesh = billboard(name, o.def.scale);
+      o.mesh.position.set(o.x, o.h - 3, o.y);
+      o.sprite = name;
+    }
     this.scene.add(o.mesh);
   },
   refreshMesh(o) {
@@ -272,6 +317,11 @@ export const World = {
       return;
     }
     if (!o.mesh) { this.spawnMesh(o); return; }
+    if (Style.models) {
+      if (o.mesh.userData.key !== `${o.type}|${o.v}|${o.stage}`) { this.scene.remove(o.mesh); this.spawnMesh(o); }
+      else setNightGlow(o.mesh, o.type === "pearl" || this.night);
+      return;
+    }
     const name = this.spriteFor(o, this.night);
     if (name !== o.sprite) { setSprite(o.mesh, name, o.def.scale); o.sprite = name; }
   },
@@ -305,9 +355,23 @@ export const World = {
 
   // Every card turns to face the view. A wide card (a tree's crown) you stand right beside is eased back
   // so it never fills the whole view.
-  faceCamera(yaw, dt, t, cx, cy) {
+  // knight: in the third-person view, models standing between the camera and the knight are hidden.
+  faceCamera(yaw, dt, t, cx, cy, knight) {
+    const sx = knight ? knight.x - cx : 0, sy = knight ? knight.y - cy : 0, sl = sx * sx + sy * sy || 1;
     for (const c of this.chunks.values()) for (const o of c.objects) {
       if (!o.mesh) continue;
+      if (o.mesh.userData.model) {
+        if (knight) {
+          const raw = ((o.x - cx) * sx + (o.y - cy) * sy) / sl, u = clamp01(raw);
+          const ex = cx + sx * u - o.x, ey = cy + sy * u - o.y, r = (o.solid || 6) + (o.type === "tree" ? 48 : 14);
+          o.mesh.visible = !(raw > -0.25 && raw < 0.9 && ex * ex + ey * ey < r * r);
+        } else o.mesh.visible = true;
+        if (o.shake > 0) {
+          o.shake = Math.max(0, o.shake - dt);
+          o.mesh.position.x = o.x + Math.sin(t * 70) * o.shake * 6;
+        } else o.mesh.position.x = o.x;
+        continue;
+      }
       o.mesh.rotation.y = yaw;
       let x = o.x, y = o.y;
       const keep = Math.abs(o.mesh.scale.x) * 0.42, dx = o.x - cx, dy = o.y - cy, d = Math.hypot(dx, dy);

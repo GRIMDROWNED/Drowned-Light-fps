@@ -4,6 +4,7 @@ import { RESOURCES, RES_KEYS, ZONES, KITS, KIT_ORDER, DIFFICULTIES, DIFF_ORDER, 
 import { G } from "./game.js";
 import { Input } from "./input.js";
 import { Camp } from "./camp.js";
+import { Style } from "./models.js";
 
 const $ = (id) => document.getElementById(id);
 const icon = (k) => `<img src="assets/sprites/props/${RESOURCES[k].icon}.png" alt="">`;
@@ -29,6 +30,8 @@ export const UI = {
     $("btnTorch").onclick = () => { G.craftTorch(); this.renderCamp(); };
     for (const id of ["btnMute", "btnMute2"]) $(id).onclick = () => this.toggleMute();
     $("btnView").onclick = () => { G.toggleView(); this.syncSettings(); };
+    // the art style is picked when the world is built, so switching reloads (the game saves on the way out)
+    $("btnArt").onclick = () => { Style.set(Style.models ? "sprites" : "models"); location.reload(); };
     $("btnInvert").onclick = () => { Input.invertY = G.save.invertY = !G.save.invertY; G.persist(); this.syncSettings(); };
     $("sens").oninput = (e) => { Input.sens = G.save.sens = +e.target.value; G.persist(); };
     $("clickToPlay").onclick = () => this.play();
@@ -50,6 +53,7 @@ export const UI = {
     const m = G.save.muted ? "Sound: off" : "Sound: on";
     $("btnMute").textContent = $("btnMute2").textContent = m;
     $("btnInvert").textContent = "Invert look: " + (G.save.invertY ? "on" : "off");
+    $("btnArt").textContent = "Art: " + (Style.models ? "low-poly 3D" : "drawn sprites");
     $("btnView").textContent = "View: " + (G.thirdPerson() ? "third person" : "first person");
     $("sens").value = G.save.sens;
   },
