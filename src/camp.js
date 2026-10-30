@@ -2,6 +2,7 @@
    structures you build, each standing where it stands in the top-down game (src/camp.js there). */
 import * as THREE from "../vendor/three.module.min.js";
 import { billboard, setSprite, fireCard, setFire, glowCard } from "./assets.js";
+import { Style, campModel, fireModel, animateFire } from "./models.js";
 
 export const Camp = {
   group: null,
@@ -39,20 +40,27 @@ export const Camp = {
     this.billboards = [];
     const L = this.layout(up);
     for (const it of L.items) {
-      const m = billboard(it.name, it.scale);
-      setSprite(m, it.name, it.scale, it.flip);
-      m.position.set(it.x, groundH(it.x, it.y) - 2, it.y);
+      let m;
+      if (Style.models) {
+        m = campModel(it.name);
+        m.rotation.y = Math.atan2(-it.x, -it.y); // turned to face the fire
+        m.position.set(it.x, groundH(it.x, it.y) - 1, it.y);
+      } else {
+        m = billboard(it.name, it.scale);
+        setSprite(m, it.name, it.scale, it.flip);
+        m.position.set(it.x, groundH(it.x, it.y) - 2, it.y);
+        this.billboards.push(m);
+      }
       g.add(m);
-      this.billboards.push(m);
       if (it.solid) this.solids.push({ x: it.x, y: it.y, r: it.solid });
     }
     // the Central Flame: an iron brazier with the drawn fire dancing in it
-    const br = billboard("brazier", 1.8);
+    const br = Style.models ? campModel("brazier") : billboard("brazier", 1.8);
     br.position.set(0, groundH(0, 0) - 1, 0);
     g.add(br);
-    this.billboards.push(br);
-    this.fire = fireCard("fire1", 1.5);
-    this.fire.position.set(0, groundH(0, 0) + 46, 0);
+    if (!Style.models) this.billboards.push(br);
+    this.fire = Style.models ? fireModel(1.5) : fireCard("fire1", 1.5);
+    this.fire.position.set(0, groundH(0, 0) + (Style.models ? 30 : 46), 0);
     g.add(this.fire);
     this.fireGlow = glowCard(0xffa040, 170, 0.4);
     this.fireGlow.position.set(0, groundH(0, 0) + 92, 0);
@@ -65,9 +73,12 @@ export const Camp = {
     if (!this.group) return;
     for (const b of this.billboards) b.rotation.y = yaw;
     const f = this.fire;
-    f.rotation.y = yaw;
     f.visible = lit;
-    setFire(f, "fire" + (1 + (Math.floor(t * 9) % 6)), 1.2 + 0.5 * strength);
+    if (f.userData.flames) animateFire(f, t, 0.8 + 0.35 * strength);
+    else {
+      f.rotation.y = yaw;
+      setFire(f, "fire" + (1 + (Math.floor(t * 9) % 6)), 1.2 + 0.5 * strength);
+    }
     this.fireGlow.visible = lit;
     this.fireGlow.rotation.y = yaw;
     this.fireGlow.material.opacity = 0.3 + Math.sin(t * 11) * 0.05 + Math.sin(t * 3.7) * 0.04;

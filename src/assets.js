@@ -4,7 +4,7 @@
 import * as THREE from "../vendor/three.module.min.js";
 import { ENEMY_TYPES } from "./data.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 const v = (url) => url + "?v=" + VERSION;
 
 const FRAMES = ["attackA", "attackB", "attackC", "back", "front", "right", "walkB1", "walkB2", "walkB3", "walkB4", "walkF1", "walkF2", "walkF3", "walkF4"];

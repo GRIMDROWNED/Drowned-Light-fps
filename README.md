@@ -2,9 +2,14 @@
 
 **Will you thrive in the light or drown in the darkness?** Now through the visor.
 
-A first-person and third-person (2.5D) take on [Drowned Light](https://github.com/GRIMDROWNED/Drowned-Light), the top-down dark-fantasy survival game. You are the lantern-bearing knight, walking the same endless marsh, either through his eyes or from just behind and above him, where you see him in his own drawn sprites. By day you range out from the camp to gather supplies. By night the darkness corrupts anyone outside the light, and the Drowned Knights come for you and your fire.
+A first-person and third-person (2.5D) take on [Drowned Light](https://github.com/GRIMDROWNED/Drowned-Light), the top-down dark-fantasy survival game. You are the lantern-bearing knight, walking the same endless marsh, either through his eyes or from just behind and above him. By day you range out from the camp to gather supplies. By night the darkness corrupts anyone outside the light, and the Drowned Knights come for you and your fire.
 
-It runs in the browser with no build step, like the original. The 3D world is drawn with [three.js](https://threejs.org) (vendored in `vendor/`, MIT), and every tree, rock, bloom, building and Drowned is the original game's drawn sprite standing in the world as a billboard that turns to face you, the way classic first-person games drew their monsters. The Drowned are seen from the front, the back or the side depending on which way they face, with their walk, wind-up and strike frames. The cyan of the drowned light in their eyes, lanterns and blades, and the glow of the blooms, still burns in the dark.
+It runs in the browser with no build step, like the original. The 3D world is drawn with [three.js](https://threejs.org) (vendored in `vendor/`, MIT).
+
+There are two art styles, switched from the pause menu (the choice is kept on your device):
+
+- **Low-poly 3D** (the default): every tree, rock, ore, bloom, camp building, torch and supply is a flat-shaded model built from simple shapes in code (`src/models.js`, no model files). The knight and the Drowned are jointed figures that walk, wind up, strike and topple when slain. The ground and water are faceted, with a colour per face. The drowned light in their eyes, lanterns and blades, the blooms and the amethyst stay unlit, so they still burn in the dark. In the third-person view, anything standing between the camera and the knight is hidden so it never blocks the view.
+- **Drawn sprites**: the original game's sprites standing in the world as billboards that turn to face you, the way classic first-person games drew their monsters, seen from the front, back or side with their walk, wind-up and strike frames.
 
 ## Play
 
@@ -55,6 +60,7 @@ The companions (Bone Hound, Kindle, Derek, Abigail, Fred, David), the bosses and
 | `src/data.js` | Balance and content, mostly copied from the original |
 | `src/core.js` | Math, deterministic noise and the WebAudio sound synth (from the original) |
 | `src/assets.js` | Sprite loading, glow maps, billboard and fire cards |
+| `src/models.js` | The low-poly look: models, jointed figures and their poses, and the art-style setting |
 | `src/world.js` | Chunked terrain painted with the original ground art, water, objects and groves |
 | `src/camp.js` | The camp's layout by tier and structure level |
 | `src/game.js` | Cycle, light, corruption, the knight, combat, the Drowned, the camp's upgrades, lights and rendering |

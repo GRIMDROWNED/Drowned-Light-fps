@@ -9,6 +9,7 @@ import {
 import { World, WATER_LEVEL, sq } from "./world.js";
 import { Camp } from "./camp.js";
 import { billboard, setSprite, glowCard, fireCard, setFire } from "./assets.js";
+import { Style, figure, poseFigure, torchModel, animateFire, pickupModel } from "./models.js";
 import { Input } from "./input.js";
 import { ViewModel } from "./viewmodel.js";
 
@@ -147,7 +148,14 @@ G.startLife = function (fresh) {
     atkCd: 0, dashCd: 0, dashT: 0, dashDir: [0, 0], dashHit: new Set(), abiCd: 0, inv: 1.5, still: 0,
     bob: 0, stepT: 0, zi: 0, dead: false, face: fresh ? -Math.PI / 2 : prevYaw, animT: 0, swingT: 0, hurtT: 0,
   };
-  if (!G.knight) { G.knight = billboard("lantern-knight/back", 1); G.scene.add(G.knight); }
+  // the knight's body for the third-person view (in the low-poly look, a figure for the chosen kit)
+  const want = Style.models ? "fig|" + G.save.kit : "sprite";
+  if (G.knight && G.knight.userData.want !== want) { G.scene.remove(G.knight); G.knight = null; }
+  if (!G.knight) {
+    G.knight = Style.models ? figure(G.save.kit) : billboard("lantern-knight/back", 1);
+    G.knight.userData.want = want;
+    G.scene.add(G.knight);
+  }
   if (fresh) {
     for (const e of G.enemies) removeEnemy(e);
     G.enemies = [];
@@ -477,10 +485,16 @@ function placeTorch() {
   const x = p.x + fx * 40, y = p.y + fy * 40;
   const h = World.height(x, y);
   const t = { type: "torch", x, y, h, t: st.torchDur, max: st.torchDur, r: 125 * G.diff().light, hp: 40, rad: 8 };
-  t.stick = billboard("torch", 1.5);
-  t.stick.position.set(x, h - 2, y);
-  t.fire = fireCard("fire1", 0.55);
-  t.fire.position.set(x, h + 62, y);
+  if (Style.models) {
+    t.stick = torchModel();
+    t.stick.position.set(x, h - 2, y);
+    t.fire = new THREE.Group(); // the flame rides on the torch model
+  } else {
+    t.stick = billboard("torch", 1.5);
+    t.stick.position.set(x, h - 2, y);
+    t.fire = fireCard("fire1", 0.55);
+    t.fire.position.set(x, h + 62, y);
+  }
   t.glow = glowCard(0xff9a40, 110, 0.5);
   t.glow.position.set(x, h + 76, y);
   G.scene.add(t.stick, t.fire, t.glow);
@@ -493,7 +507,8 @@ function updateTorches(dt) {
     t.t -= dt;
     const fade = clamp(t.t / 6, 0, 1);
     t.glow.material.opacity = 0.45 * fade + Math.sin(G.t * 13 + t.x) * 0.04;
-    setFire(t.fire, "fire" + (1 + (Math.floor(G.t * 10 + Math.abs(t.x)) % 6)), 0.55 * (0.4 + 0.6 * fade));
+    if (t.stick.userData.fire) animateFire(t.stick.userData.fire, G.t + t.x, 0.4 + 0.6 * fade);
+    else setFire(t.fire, "fire" + (1 + (Math.floor(G.t * 10 + Math.abs(t.x)) % 6)), 0.55 * (0.4 + 0.6 * fade));
   }
   const gone = G.torches.filter((t) => t.t <= 0 || t.hp <= 0);
   for (const t of gone) removeTorch(t);
@@ -640,7 +655,7 @@ function makeEnemy(type, x, y, zi, extra) {
     state: "move", stT: 0, cd: rand(0.3, 1), flash: 0, burn: 0, slow: 0, zz: rand(0, TAU),
     rise: def.crawl ? 0.9 : 0.6, goal: null, zi,
   }, extra || {});
-  e.mesh = billboard(`${art}/front`, def.scale);
+  e.mesh = Style.models ? figure(type) : billboard(`${art}/front`, def.scale);
   G.scene.add(e.mesh);
   return e;
 }
@@ -899,7 +914,7 @@ function updateProjectiles(dt) {
 /* ---------------- pickups ---------------- */
 function dropPickup(res, x, y) {
   const icon = RESOURCES[res].icon;
-  const mesh = billboard(icon, 1.3);
+  const mesh = Style.models ? pickupModel(res) : billboard(icon, 1.3);
   G.scene.add(mesh);
   const a = rand(0, TAU);
   G.pickups.push({ res, x, y, z: World.height(x, y) + 20, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, vz: 140, t: 0, mesh });
@@ -923,7 +938,7 @@ function updatePickups(dt) {
       if (k.z < gh + 2) { k.z = gh + 2; k.vz = Math.abs(k.vz) > 60 ? -k.vz * 0.35 : 0; }
     }
     k.mesh.position.set(k.x, k.z + Math.sin(G.t * 3 + k.x) * 2, k.y);
-    k.mesh.rotation.y = p.yaw;
+    k.mesh.rotation.y = k.mesh.userData.model ? G.t * 2 + k.x : p.yaw;
     if (k.t > 120) k.taken = true;
   }
   const gone = G.pickups.filter((k) => k.taken);
@@ -1113,7 +1128,7 @@ function render(dt) {
   G.camX = cam.position.x; G.camY = cam.position.z;
   renderKnight(third);
 
-  World.faceCamera(p.yaw, dt, G.t, G.camX, G.camY);
+  World.faceCamera(p.yaw, dt, G.t, G.camX, G.camY, third ? p : null);
   Camp.update(G.t, p.yaw, G.flame.lit, G.save.up.flame / 5);
   renderEnemies();
 
@@ -1128,6 +1143,14 @@ function renderKnight(show) {
   const p = G.player, k = G.knight, art = G.kit().art;
   k.visible = show;
   if (!show) return;
+  if (k.userData.figure) {
+    const dead = G.state === "dead" ? Math.min(1, (p.deadT || 0) * 2.5) : 0;
+    const swing = p.swingT > 0.24 ? "windup" : p.swingT > 0 ? "strike" : "move";
+    poseFigure(k, { t: p.animT, moving: G.state === "play" && p.moving, state: swing, stT: p.swingT, dead,
+      look: p.hurtT > 0 ? "flash" : "", angle: p.face });
+    k.position.set(p.x, World.height(p.x, p.y) - 1 + (p.dashT > 0 ? 3 : 0), p.y);
+    return;
+  }
   const yaw = p.yaw, rx = Math.cos(yaw), ry = -Math.sin(yaw);
   const toCam = Math.atan2(G.camY - p.y, G.camX - p.x);
   const rel = Math.abs(angleDiff(p.face, toCam));
@@ -1153,6 +1176,17 @@ function renderEnemies() {
   for (const e of G.enemies) {
     const m = e.mesh, d = e.def;
     const gh = World.height(e.x, e.y);
+    if (m.userData.figure) {
+      const dying = e.dying !== undefined && e.dying !== false;
+      const look = e.flash > 0 ? (e.burning || e.burn > 0 ? "burn" : "flash") : e.type === "self" ? "self" : "";
+      poseFigure(m, { t: e.animT, moving: e.moving, state: e.state, stT: e.stT, look, angle: e.angle,
+        dead: dying ? clamp((1 - e.dying) * 3, 0, 1) : 0 });
+      let sink = 0;
+      if (e.rise > 0) sink = (e.rise / (d.crawl ? 0.9 : 0.6)) * 90 * (m.userData.F.scale || 1);
+      if (dying) sink = Math.max(0, 1 - clamp(e.dying, 0, 1) - 0.4) * 50;
+      m.position.set(e.x, gh - 1 - sink, e.y);
+      continue;
+    }
     // which way it faces, seen from the camera: front, back or side
     const toCam = Math.atan2(G.camY - e.y, G.camX - e.x);
     const rel = Math.abs(angleDiff(e.angle, toCam));

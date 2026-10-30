@@ -1,7 +1,7 @@
 /* Drowned Light FPS — service worker: lets the installed app start offline.
    Always asks the network for fresh files first, so a new version on GitHub Pages shows up on the next launch;
    the saved copy is used only when there's no connection. Bump VERSION with each release (src/assets.js too). */
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const CACHE = "drowned-light-fps-" + VERSION;
 const FILES = [
   "./", "assets/drowned-games.jpg", "assets/sprites/ashen-arbalist/attackA.png",
@@ -164,7 +164,7 @@ const FILES = [
   "assets/sprites/props/workbench3.png", "assets/sprites/props/workbench4.png", "icons/apple-touch-icon.png",
   "icons/favicon-32.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png",
   "icons/icon-maskable-512.png", "index.html", "manifest.webmanifest", "src/assets.js", "src/camp.js", "src/core.js",
-  "src/data.js", "src/game.js", "src/input.js", "src/main.js", "src/ui.js", "src/viewmodel.js", "src/world.js",
+  "src/data.js", "src/game.js", "src/input.js", "src/main.js", "src/models.js", "src/ui.js", "src/viewmodel.js", "src/world.js",
   "style.css", "vendor/three.module.min.js"
 ];
 
