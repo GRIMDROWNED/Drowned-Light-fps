@@ -12,7 +12,7 @@ export const Input = {
   BINDS: {
     KeyW: "fwd", ArrowUp: "fwd", KeyS: "back", ArrowDown: "back", KeyA: "left", ArrowLeft: "left", KeyD: "right", ArrowRight: "right",
     Space: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyE: "ability", KeyQ: "ability", KeyF: "torch", KeyT: "torch",
-    KeyC: "camp", Escape: "pause", KeyP: "pause", KeyG: "mine", KeyJ: "attack", KeyK: "attack", KeyM: "mute",
+    KeyC: "camp", Escape: "pause", KeyP: "pause", KeyG: "mine", KeyJ: "attack", KeyK: "attack", KeyM: "mute", KeyV: "view",
   },
 
   init(canvas) {
@@ -101,7 +101,7 @@ export const Input = {
     const now = gp.buttons.map((_, i) => b(i));
     const tap = (i, a) => { if (now[i] && !this.padPrev[i]) this.pressed.add(a); };
     tap(0, "dash"); tap(1, "ability"); tap(2, "ability"); tap(4, "torch"); tap(3, "camp"); tap(9, "pause"); tap(8, "pause");
-    tap(7, "attack"); tap(6, "mine"); tap(5, "ability");
+    tap(7, "attack"); tap(6, "mine"); tap(5, "ability"); tap(10, "view"); tap(11, "view");
     this.pad.attack = now[7]; this.pad.mine = now[6];
     if (now.some((x) => x) || this.pad.x || this.pad.y || this.pad.lx || this.pad.ly) this.pad.active = true;
     this.padPrev = now;

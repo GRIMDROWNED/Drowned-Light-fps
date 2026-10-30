@@ -4,7 +4,7 @@
 import * as THREE from "../vendor/three.module.min.js";
 import { ENEMY_TYPES } from "./data.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 const v = (url) => url + "?v=" + VERSION;
 
 const FRAMES = ["attackA", "attackB", "attackC", "back", "front", "right", "walkB1", "walkB2", "walkB3", "walkB4", "walkF1", "walkF2", "walkF3", "walkF4"];
@@ -36,8 +36,12 @@ export const Assets = {
       for (const f of FRAMES) out.push([`${t}/${f}`, `assets/sprites/drowned/${t}/${f}.png`]);
       for (const f of SIDE) out.push([`${t}/side/${f}`, `assets/sprites/drowned/${t}/side/${f}.png`]);
     }
-    for (const f of FRAMES) out.push([`lantern-knight/${f}`, `assets/sprites/lantern-knight/${f}.png`]);
-    for (const f of SIDE) out.push([`lantern-knight/side/${f}`, `assets/sprites/lantern-knight/side/${f}.png`]);
+    // the knights themselves, seen from behind in the third-person view
+    for (const k of ["lantern-knight", "pike-warden", "ashen-arbalist"]) {
+      for (const f of FRAMES) out.push([`${k}/${f}`, `assets/sprites/${k}/${f}.png`]);
+      for (const f of SIDE) out.push([`${k}/side/${f}`, `assets/sprites/${k}/side/${f}.png`]);
+    }
+    for (const k of ["lantern-knight", "ashen-arbalist"]) out.push([`${k}/side/dash`, `assets/sprites/${k}/side/dash.png`]);
     for (const p of PROPS) out.push([p, `assets/sprites/props/${p}.png`]);
     for (const g of GROUND) out.push(["ground/" + g, `assets/sprites/ground/${g}.png`]);
     return out;

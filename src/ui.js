@@ -28,6 +28,7 @@ export const UI = {
     $("btnCampClose").onclick = () => this.play();
     $("btnTorch").onclick = () => { G.craftTorch(); this.renderCamp(); };
     for (const id of ["btnMute", "btnMute2"]) $(id).onclick = () => this.toggleMute();
+    $("btnView").onclick = () => { G.toggleView(); this.syncSettings(); };
     $("btnInvert").onclick = () => { Input.invertY = G.save.invertY = !G.save.invertY; G.persist(); this.syncSettings(); };
     $("sens").oninput = (e) => { Input.sens = G.save.sens = +e.target.value; G.persist(); };
     $("clickToPlay").onclick = () => this.play();
@@ -49,6 +50,7 @@ export const UI = {
     const m = G.save.muted ? "Sound: off" : "Sound: on";
     $("btnMute").textContent = $("btnMute2").textContent = m;
     $("btnInvert").textContent = "Invert look: " + (G.save.invertY ? "on" : "off");
+    $("btnView").textContent = "View: " + (G.thirdPerson() ? "third person" : "first person");
     $("sens").value = G.save.sens;
   },
   toggleMute() { Sound.muted = G.save.muted = !G.save.muted; G.persist(); this.syncSettings(); },

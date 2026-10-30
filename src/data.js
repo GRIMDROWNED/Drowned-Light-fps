@@ -113,7 +113,7 @@ export const campPool = function (day) {
    Three of the original seven made the trip to first person so far. Reaches are longer than top-down. */
 export const KITS = {
   lanternBlade: {
-    name: "Lantern Blade", tag: "Kit 01", motto: "A light still endures.", color: "255,197,106",
+    name: "Lantern Blade", tag: "Kit 01", art: "lantern-knight", motto: "A light still endures.", color: "255,197,106",
     desc: "A faithful blade and a lantern that holds back the dark. Quick sword arcs; your dash is a Lantern Strike that cuts through the Drowned.",
     attack: { type: "arc", name: "Blade Arc", dmg: 12, range: 105, arc: 1.5, cd: 0.42, kb: 150 },
     dash: { type: "strike", dmg: 9 },
@@ -121,7 +121,7 @@ export const KITS = {
       desc: "A burst of firelight that burns and repels the Drowned and leaves a short-lived sanctuary." },
   },
   pikeWarden: {
-    name: "Pike Warden", tag: "Kit 02", motto: "Reach keeps the dark away.", color: "255,214,140",
+    name: "Pike Warden", tag: "Kit 02", art: "pike-warden", motto: "Reach keeps the dark away.", color: "255,214,140",
     desc: "Extended reach and a stable form. Pike Thrust strikes everything along a line and drives it back. Stand still a moment and your thrusts hit 15% harder.",
     attack: { type: "thrust", name: "Pike Thrust", dmg: 15, range: 150, width: 30, cd: 0.6, kb: 240 },
     dash: { type: "plain" },
@@ -130,7 +130,7 @@ export const KITS = {
       desc: "A full circle of the pike: hurls the Drowned back and knocks arrows from the air." },
   },
   ashenArbalist: {
-    name: "Ashen Arbalist", tag: "Kit 03", motto: "Quiet light. Farther truths.", color: "255,160,80",
+    name: "Ashen Arbalist", tag: "Kit 03", art: "ashen-arbalist", motto: "Quiet light. Farther truths.", color: "255,160,80",
     desc: "Piercing shots and a steady aim. Bolts strike up to 35% harder the farther they fly.",
     attack: { type: "bolt", name: "Piercing Bolt", dmg: 14, range: 700, cd: 0.75, pierce: 1, speed: 1400 },
     dash: { type: "plain" },

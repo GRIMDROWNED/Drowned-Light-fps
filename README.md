@@ -2,7 +2,7 @@
 
 **Will you thrive in the light or drown in the darkness?** Now through the visor.
 
-A first-person take on [Drowned Light](https://github.com/GRIMDROWNED/Drowned-Light), the top-down dark-fantasy survival game. You are the lantern-bearing knight, walking the same endless marsh with your own eyes. By day you range out from the camp to gather supplies. By night the darkness corrupts anyone outside the light, and the Drowned Knights come for you and your fire.
+A first-person and third-person (2.5D) take on [Drowned Light](https://github.com/GRIMDROWNED/Drowned-Light), the top-down dark-fantasy survival game. You are the lantern-bearing knight, walking the same endless marsh, either through his eyes or from just behind and above him, where you see him in his own drawn sprites. By day you range out from the camp to gather supplies. By night the darkness corrupts anyone outside the light, and the Drowned Knights come for you and your fire.
 
 It runs in the browser with no build step, like the original. The 3D world is drawn with [three.js](https://threejs.org) (vendored in `vendor/`, MIT), and every tree, rock, bloom, building and Drowned is the original game's drawn sprite standing in the world as a billboard that turns to face you, the way classic first-person games drew their monsters. The Drowned are seen from the front, the back or the side depending on which way they face, with their walk, wind-up and strike frames. The cyan of the drowned light in their eyes, lanterns and blades, and the glow of the blooms, still burns in the dark.
 
@@ -25,9 +25,10 @@ It runs in the browser with no build step, like the original. The 3D world is dr
 | Plant a torch | F / T | LB |
 | Camp menu | C (at camp) | Y |
 | Pause | Esc / P | Menu / View |
+| Third / first person | V (or the pause menu) | Stick click |
 | Sound | M | |
 
-Melee kits also chop or mine whatever the crosshair rests on when no Drowned is in reach. The pause menu has look sensitivity and invert look.
+**Third person** (the default) puts the camera behind and above the knight. Looking up and down swings it between a low chase view and a high, almost top-down one. The knight walks where you steer, turns to the camera's aim when he strikes, and shows his walk, strike, dash, hurt and death frames, seen from the front, back or side. Melee kits also chop or mine whatever the crosshair rests on when no Drowned is in reach. The pause menu has look sensitivity and invert look.
 
 ## What came over from the top-down game
 
